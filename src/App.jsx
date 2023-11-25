@@ -1,56 +1,58 @@
 import { createSignal, createMemo, Show, onCleanup } from 'solid-js';
+import { createStore, produce } from 'solid-js/store';
 
 let counter = 0;
 const ENTER_KEY = 13;
 const ESCAPE_KEY = 27;
 
 const App = () => {
-  const [todos, setTodos] = createSignal([]);
+  const [todos, setTodos] = createStore([]);
   const [showMode, setShowMode] = createSignal('all');
-  const remainingCount = createMemo(() => todos().filter(todo => !todo.completed).length);
+  const remainingCount = createMemo(() => todos.filter(todo => !todo.completed).length);
 
   function addTodo(event) {
     const title = event.target.value.trim();
     if (event.keyCode == ENTER_KEY && title) {
-      setTodos((todos) => [
-        ...todos,
-        { id: counter++, title, completed: false },
-      ]);
+      setTodos(produce(
+        tds => tds.push({ id: counter++, title, completed: false }))
+      );
       event.target.value = '';
     }
   };
 
   function removeTodo(todoId) {
     return () => {
-      setTodos(todos => todos.filter(todo => todo.id !== todoId));
+      setTodos(todos.filter(todo => todo.id !== todoId));
     }
   };
 
-  function toggleCompleted(todoId) {
+  function toggleCompleted(id) {
     return () => {
-      setTodos(todos =>
-        todos.map(todo => {
-          if (todo.id !== todoId) return todo;
-          return { ...todo, completed: !todo.completed };
-        }
-        )
+      setTodos(
+        (todo) => todo.id == id,
+        "completed",
+        (completed) => !completed
       );
     }
   };
 
   function clearCompleted() {
-    setTodos(todos => todos.filter(todo => !todo.completed))
+    setTodos(todos.filter(todo => !todo.completed));
   };
 
   const toggleAll = (event) => {
     const checked = event.target.checked;
-    setTodos(todos => todos.map(todo => ({ ...todo, completed: checked })));
+    setTodos(
+      () => true,
+      "completed",
+      () => checked
+    )
   };
 
-  const filterTodos = (todos) => {
-    if (showMode() === 'active') return todos.filter(todo => !todo.completed);
-    if (showMode() === 'completed') return todos.filter(todo => todo.completed);
-    return todos;
+  const filterTodos = (tds) => {
+    if (showMode() === 'active') return tds.filter(todo => !todo.completed);
+    if (showMode() === 'completed') return tds.filter(todo => todo.completed);
+    return tds;
   }
 
   function locationHandler() {
@@ -72,7 +74,7 @@ const App = () => {
       </header>
 
 
-      <Show when={todos().length > 0}>
+      <Show when={todos.length > 0}>
         <section class="main">
 
           <input
@@ -85,7 +87,7 @@ const App = () => {
           <label for="toggle-all" />
 
           <ul class="todo-list">
-            <For each={filterTodos(todos())}>
+            <For each={filterTodos(todos)}>
               {(todo) => (
                 <li class="todo"
                   classList={{
@@ -134,7 +136,7 @@ const App = () => {
               </a>
             </li>
           </ul>
-          <Show when={remainingCount() !== todos().length}>
+          <Show when={remainingCount() !== todos.length}>
             <button class="clear-completed" onClick={clearCompleted}>
               Clear completed
             </button>
